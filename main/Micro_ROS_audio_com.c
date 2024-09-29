@@ -57,7 +57,6 @@ static bool send_flag = false;
 static int res_header = 0;
 static int receive_ID = 0;
 static ringbuf_handle_t *recv_rb;
-static char *rbuf = NULL;
 // #define SEND_LEN    61    // AMRWB_ENC_BITRATE_MD2385 61
 // #define SEND_LEN    16    // AMRWB_ENC_BITRATE_MD66   16
 #define SEND_LEN    48       // AMRWB_ENC_BITRATE_MD885  24
@@ -304,7 +303,6 @@ void app_main(void)
     audio_element_handle_t i2s_stream_writer = create_i2s_stream(PLAY_RATE, PLAY_BITS, PLAY_CHANNEL, AUDIO_STREAM_WRITER);
     
     recv_rb = rb_create(RECV_RB_SIZE, 1);
-    rbuf = (char *)audio_calloc(1, 120);
     // Set amr callbcak function
     audio_element_set_write_cb(amrwb_encoder_el, amrnb_write_cb, (void *)NULL);
     audio_element_set_read_cb(amr_decoder_el, amr_read_cb, (void *)NULL);
@@ -366,14 +364,14 @@ void app_main(void)
         &publisher, 
         &node, 
         ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, ByteMultiArray), 
-        "Esp32_audio_data_1"));
+        "Esp32_audio_data_2"));
 
     // Initialize subscriber
     RCCHECK(rclc_subscription_init_best_effort(
         &subscriber,
         &node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, ByteMultiArray),
-        "Esp32_audio_data_2"));
+        "Esp32_audio_data_1"));
 
 	// Create publish timer.
 	rcl_timer_t timer = rcl_get_zero_initialized_timer();

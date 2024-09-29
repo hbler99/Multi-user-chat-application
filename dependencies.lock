@@ -38,6 +38,6 @@ direct_dependencies:
 - espressif/jsmn
 - espressif/nghttp
 - idf
-manifest_hash: 4155b847ed8570094c41a8bf9e4a0b29cf18a176d1d57dc9f3472c0e05be23db
+manifest_hash: e788a1e29096faf4f2f8c1cb5ea17f8a6809a44b9be7a8066c05697900fb8ade
 target: esp32s3
 version: 2.0.0
