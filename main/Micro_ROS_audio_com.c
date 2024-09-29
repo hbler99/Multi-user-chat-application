@@ -55,7 +55,7 @@
 
 #define AMRWB_HEADER_INFO "#!AMR-WB\n"
 #define AMRWB_HEADER_SIZE (9)
-#define RECV_RB_SIZE 1024 * 5
+#define RECV_RB_SIZE 512
 static const char *TAG = "Audio_com";
 
 // Define publisher & subscriber
@@ -147,6 +147,7 @@ void subscription_callback(const void *msgin)
     }
     else
     {
+        usleep(50000); // microseconds
         ESP_LOGI(TAG, "recv_rb is filled");
     }
 }
@@ -201,7 +202,7 @@ static int amr_read_cb(audio_element_handle_t self, char *buffer, int len, TickT
             {
                 if (send_flag != 0)
                 {
-                    ESP_LOGI(TAG, "Ringbuf is no data!");
+                    usleep(50000); // microseconds
                     rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1));
                 }
                 if (len == 1)
@@ -415,14 +416,14 @@ void app_main(void)
         &publisher,
         &node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, ByteMultiArray),
-        "Esp32_audio_data_2"));
+        "Esp32_audio_data_1"));
 
     // Initialize subscriber
     RCCHECK(rclc_subscription_init_best_effort(
         &subscriber,
         &node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, ByteMultiArray),
-        "Esp32_audio_data_1"));
+        "Esp32_audio_data_2"));
 
     // Create publish timer.
     rcl_timer_t timer = rcl_get_zero_initialized_timer();
