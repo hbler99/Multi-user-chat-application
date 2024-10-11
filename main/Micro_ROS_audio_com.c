@@ -147,7 +147,7 @@ void subscription_callback(const void *msgin)
     }
     else
     {
-        usleep(50000); // microseconds
+        usleep(RCL_MS_TO_NS(50)); // microseconds
         ESP_LOGI(TAG, "recv_rb is filled");
     }
 }
@@ -202,7 +202,7 @@ static int amr_read_cb(audio_element_handle_t self, char *buffer, int len, TickT
             {
                 if (send_flag != 0)
                 {
-                    usleep(50000); // microseconds
+                    usleep(RCL_MS_TO_NS(50)); // microseconds
                     rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1));
                 }
                 if (len == 1)
@@ -266,12 +266,12 @@ static esp_err_t input_key_service_cb(periph_service_handle_t handle, periph_ser
         case INPUT_KEY_USER_ID_PLAY:
             ESP_LOGI(TAG, "[ * ] [Play] input key event");
             send_flag = true;
-            ESP_LOGW(TAG, "START recording");
+            ESP_LOGW(TAG, "START communicating");
             break;
         case INPUT_KEY_USER_ID_SET:
             ESP_LOGI(TAG, "[ * ] [Set] input key event");
             send_flag = false;
-            ESP_LOGW(TAG, "STOP recording");
+            ESP_LOGW(TAG, "STOP communicating");
             break;
         case INPUT_KEY_USER_ID_VOLUP:
             ESP_LOGI(TAG, "[ * ] [Vol+] input key event");
@@ -342,12 +342,12 @@ void app_main(void)
     input_key_service_add_key(input_ser, input_key_info, INPUT_KEY_NUM);
     periph_service_set_callback(input_ser, input_key_service_cb, (void *)board_handle);
 
-    ESP_LOGI(TAG, "[ 3 ] Create audio pipeline for playback");
+    ESP_LOGI(TAG, "[ 4 ] Create audio pipeline for playback");
     audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
     pipeline_in = audio_pipeline_init(&pipeline_cfg);
     pipeline_out = audio_pipeline_init(&pipeline_cfg);
 
-    ESP_LOGI(TAG, "[3.1] Create i2s stream to write data to codec chip and read data from codec chip");
+    ESP_LOGI(TAG, "[4.1] Create i2s stream to write data to codec chip and read data from codec chip");
     i2s_stream_reader = create_i2s_stream(PLAY_RATE, PLAY_BITS, PLAY_CHANNEL, AUDIO_STREAM_READER);
     amrwb_encoder_el = create_amrwb_encoder();
 
@@ -359,31 +359,30 @@ void app_main(void)
     audio_element_set_write_cb(amrwb_encoder_el, amrnb_write_cb, (void *)NULL);
     audio_element_set_read_cb(amr_decoder_el, amr_read_cb, (void *)NULL);
 
-    ESP_LOGI(TAG, "[3.2] Register all elements to audio pipeline");
+    ESP_LOGI(TAG, "[4.2] Register all elements to audio pipeline");
     audio_pipeline_register(pipeline_out, i2s_stream_reader, "i2s_reader");
     audio_pipeline_register(pipeline_in, i2s_stream_writer, "i2s_writer");
 
     audio_pipeline_register(pipeline_out, amrwb_encoder_el, "amr_encoder");
     audio_pipeline_register(pipeline_in, amr_decoder_el, "amr_decoder");
 
-    ESP_LOGI(TAG, "[3.3] Link it together [Micro-ros]-->i2s_stream_writer-->amr_decoder-->[codec_chip]\
+    ESP_LOGI(TAG, "[4.3] Link it together [Micro-ros]-->i2s_stream_writer-->amr_decoder-->[codec_chip]\
      [codec_chip]-->i2s_stream_reader-->amrnb_encoder-->[Micro-ros]");
     const char *link_out[2] = {"i2s_reader", "amr_encoder"};
     audio_pipeline_link(pipeline_out, &link_out[0], 2);
     const char *link_in[2] = {"amr_decoder", "i2s_writer"};
     audio_pipeline_link(pipeline_in, &link_in[0], 2);
 
-    ESP_LOGI(TAG, "[ 4 ] Set up  event listener");
+    ESP_LOGI(TAG, "[ 5 ] Set up  event listener");
     audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
     audio_event_iface_handle_t evt = audio_event_iface_init(&evt_cfg);
     // // audio_event_iface_set_listener(esp_periph_set_get_event_iface(set), evt);
 
-    ESP_LOGI(TAG, "[5] Start audio_pipeline");
+    ESP_LOGI(TAG, "[ 6 ] Start audio_pipeline");
     audio_pipeline_set_listener(pipeline_out, evt);
     audio_pipeline_set_listener(pipeline_in, evt);
 
-    ESP_LOGW(TAG, "[ 6 ] Press the keys to communicate:");
-    ESP_LOGW(TAG, "      [Play] to start.");
+    ESP_LOGW(TAG, "[ 7 ] Press the [Play] keys to communicate");
 
 #if defined(CONFIG_MICRO_ROS_ESP_NETIF_WLAN) || defined(CONFIG_MICRO_ROS_ESP_NETIF_ENET)
     ESP_ERROR_CHECK(uros_network_interface_initialize());
@@ -454,7 +453,7 @@ void app_main(void)
         esp_err_t ret = audio_event_iface_listen(evt, &msg, 1);
         // Spin once
         rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1));
-        usleep(1000); // microseconds
+        usleep(RCL_MS_TO_NS(10)); // microseconds
     }
 
     ESP_LOGI(TAG, "[ 6 ] Pipeline stopped");
