@@ -28,54 +28,50 @@
 
 #ifdef CONFIG_MICRO_ROS_ESP_XRCE_DDS_MIDDLEWARE
 #include <rmw_microros/rmw_microros.h>
-#endif
+#endif  /* CONFIG_MICRO_ROS_ESP_XRCE_DDS_MIDDLEWARE */
 
-#define RCCHECK(fn)                                                                      \
-    {                                                                                    \
-        rcl_ret_t temp_rc = fn;                                                          \
-        if ((temp_rc != RCL_RET_OK))                                                     \
-        {                                                                                \
-            printf("Failed status on line %d: %d. Aborting.\n", __LINE__, (int)temp_rc); \
-            vTaskDelete(NULL);                                                           \
-        }                                                                                \
-    }
-#define RCSOFTCHECK(fn)                                                                    \
-    {                                                                                      \
-        rcl_ret_t temp_rc = fn;                                                            \
-        if ((temp_rc != RCL_RET_OK))                                                       \
-        {                                                                                  \
-            printf("Failed status on line %d: %d. Continuing.\n", __LINE__, (int)temp_rc); \
-        }                                                                                  \
-    }
+#define RCCHECK(fn) {                                                                 \
+    rcl_ret_t temp_rc = fn;                                                           \
+    if ((temp_rc != RCL_RET_OK)) {                                                    \
+        printf("Failed status on line %d: %d. Aborting.\n", __LINE__, (int)temp_rc);  \
+        vTaskDelete(NULL);                                                            \
+    }                                                                                 \
+}
+#define RCSOFTCHECK(fn) {                                                               \
+    rcl_ret_t temp_rc = fn;                                                             \
+    if ((temp_rc != RCL_RET_OK)) {                                                      \
+        printf("Failed status on line %d: %d. Continuing.\n", __LINE__, (int)temp_rc);  \
+    }                                                                                   \
+}
 
 // I2S配置
-#define PLAY_RATE 16000
+#define PLAY_RATE    16000
 #define PLAY_CHANNEL 1
-#define PLAY_BITS 16
+#define PLAY_BITS    16
 
 #define AMRWB_HEADER_INFO "#!AMR-WB\n"
 #define AMRWB_HEADER_SIZE (9)
-#define RECV_RB_SIZE 512
+#define RECV_RB_SIZE      512
 static const char *TAG = "Audio_com";
 
 // Define publisher & subscriber
-static rcl_subscription_t subscriber;
-static rcl_publisher_t publisher;
+static rcl_subscription_t            subscriber;
+static rcl_publisher_t               publisher;
 // Define send & recv message
 static std_msgs__msg__ByteMultiArray recv_msg;
 static std_msgs__msg__ByteMultiArray send_msg;
-audio_element_handle_t i2s_stream_reader, amrnb_encoder_el, amrwb_encoder_el;
-audio_pipeline_handle_t pipeline_in = NULL;
-audio_pipeline_handle_t pipeline_out = NULL;
-rclc_executor_t executor;
-static bool send_flag = false;
-static int res_header = 0;
-static int receive_ID = 0;
-static ringbuf_handle_t *recv_rb;
+audio_element_handle_t               i2s_stream_reader, amrnb_encoder_el, amrwb_encoder_el;
+audio_pipeline_handle_t              pipeline_in  = NULL;
+audio_pipeline_handle_t              pipeline_out = NULL;
+rclc_executor_t                      executor;
+static bool                          send_flag  = false;
+static int                           res_header = 0;
+static int                           receive_ID = 0;
+static ringbuf_handle_t             *recv_rb;
 // #define SEND_LEN    61    // AMRWB_ENC_BITRATE_MD2385 61
 // #define SEND_LEN    16    // AMRWB_ENC_BITRATE_MD66   16
-#define SEND_LEN 48 // AMRWB_ENC_BITRATE_MD885  24
-#define RECV_LEN 48 // recv msg length need match with target msg length
+#define SEND_LEN 48  // AMRWB_ENC_BITRATE_MD885  24
+#define RECV_LEN 48  // recv msg length need match with target msg length
 
 static audio_element_handle_t create_amr_decoder()
 {
@@ -119,8 +115,7 @@ void print_heap_info()
 void microros_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
 {
     (void)last_call_time;
-    if (timer != NULL)
-    {
+    if (timer != NULL) {
         // print_heap_info();
         // 自定义内容
     }
@@ -132,22 +127,17 @@ void subscription_callback(const void *msgin)
     const std_msgs__msg__ByteMultiArray *msg = (const std_msgs__msg__ByteMultiArray *)msgin;
     recv_msg.data.size = msg->data.size;
     memcpy(recv_msg.data.data, msg->data.data, recv_msg.data.size);
-    if (msg == NULL)
-    {
+    if (msg == NULL) {
         printf("Callback : msg NULL \r\n");
     }
-    if (rb_bytes_available(recv_rb) > recv_msg.data.size)
-    {
+    if (rb_bytes_available(recv_rb) > recv_msg.data.size) {
         // ESP_LOGI(TAG, "recv_rb available: %d, recv_rb size: %d \r\n",
         // rb_bytes_available(recv_rb), RECV_RB_SIZE);
-        if (rb_write(recv_rb, (void *)recv_msg.data.data, recv_msg.data.size, portMAX_DELAY) <= 0)
-        {
+        if (rb_write(recv_rb, (void *)recv_msg.data.data, recv_msg.data.size, portMAX_DELAY) <= 0) {
             ESP_LOGW(TAG, "recv_rb write timeout");
         }
-    }
-    else
-    {
-        usleep(RCL_MS_TO_NS(50)); // microseconds
+    } else {
+        usleep(RCL_MS_TO_NS(50));  // microseconds
         ESP_LOGI(TAG, "recv_rb is filled");
     }
 }
@@ -156,61 +146,43 @@ static int amr_read_cb(audio_element_handle_t self, char *buffer, int len, TickT
 {
     int read_bytes = 0;
     unsigned char head[] = {
-        0x23, 0x21, 0x41, 0x4D, 0x52, 0x2D, 0x57, 0x42, 0x0A}; // AMRWB header
+        0x23, 0x21, 0x41, 0x4D, 0x52, 0x2D, 0x57, 0x42, 0x0A};  // AMRWB header
     char header[1];
-    if (receive_ID == 0)
-    {
-        if (len <= AMRWB_HEADER_SIZE)
-        {
+    if (receive_ID == 0) {
+        if (len <= AMRWB_HEADER_SIZE) {
             res_header = AMRWB_HEADER_SIZE - len;
             memcpy(buffer, AMRWB_HEADER_INFO, len);
-        }
-        else
-        {
+        } else {
             memcpy(buffer, AMRWB_HEADER_INFO, AMRWB_HEADER_SIZE);
             read_bytes = len;
         }
         ESP_LOGI(TAG, "Write AMRWB_HEADER_INFO: %s", buffer);
         read_bytes = len;
-    }
-    else
-    {
-        if (res_header)
-        {
+    } else {
+        if (res_header) {
             memcpy(buffer, AMRWB_HEADER_INFO + AMRWB_HEADER_SIZE - res_header, res_header);
             res_header = 0;
             ESP_LOGI(TAG, "Write AMRWB_HEADER_INFO: %s", buffer);
             read_bytes = len;
-        }
-        else
-        {
-            if (send_flag && (RECV_RB_SIZE - rb_bytes_available(recv_rb)) >= len)
-            {
+        } else {
+            if (send_flag && (RECV_RB_SIZE - rb_bytes_available(recv_rb)) >= len) {
                 *header = 0x00;
-                if (len == 1)
-                {
-                    while (*header != 0x0c)
+                if (len == 1) {
+                    while (*header != 0x0c) {
                         read_bytes = rb_read(recv_rb, header, len, portMAX_DELAY);
+                    }
                     memcpy(buffer, header, len);
-                }
-                else
-                {
+                } else {
                     read_bytes = rb_read(recv_rb, buffer, len, portMAX_DELAY);
                 }
-            }
-            else
-            {
-                if (send_flag != 0)
-                {
-                    usleep(RCL_MS_TO_NS(50)); // microseconds
+            } else {
+                if (send_flag != 0) {
+                    usleep(RCL_MS_TO_NS(50));  // microseconds
                     rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1));
                 }
-                if (len == 1)
-                {
+                if (len == 1) {
                     memset(buffer, 0x0c, len);
-                }
-                else
-                {
+                } else {
                     memset(buffer, 0x00, len);
                 }
                 read_bytes = len;
@@ -224,23 +196,17 @@ static int amr_read_cb(audio_element_handle_t self, char *buffer, int len, TickT
 // send audio
 static int amrnb_write_cb(audio_element_handle_t self, char *buffer, int len, TickType_t ticks_to_wait, void *context)
 {
-    if (send_flag)
-    {
+    if (send_flag) {
         send_msg.data.size += len;
-        if (send_msg.data.size < SEND_LEN)
-        {
+        if (send_msg.data.size < SEND_LEN) {
             memcpy(send_msg.data.data + send_msg.data.size - len, buffer, len);
-        }
-        else if (send_msg.data.size == SEND_LEN)
-        {
+        } else if (send_msg.data.size == SEND_LEN) {
             memcpy(send_msg.data.data + send_msg.data.size - len, buffer, len);
             RCSOFTCHECK(rcl_publish(&publisher, &send_msg, NULL));
             memset(send_msg.data.data, 0x00, send_msg.data.size);
             send_msg.data.size = 0;
             return len;
-        }
-        else if (send_msg.data.size > SEND_LEN)
-        {
+        } else if (send_msg.data.size > SEND_LEN) {
             ESP_LOGW(TAG, "send_msg if overflow!");
             send_msg.data.size -= len;
             RCSOFTCHECK(rcl_publish(&publisher, &send_msg, NULL));
@@ -259,40 +225,36 @@ static esp_err_t input_key_service_cb(periph_service_handle_t handle, periph_ser
     audio_board_handle_t board_handle = (audio_board_handle_t)ctx;
     int player_volume;
     audio_hal_get_volume(board_handle->audio_hal, &player_volume);
-    if (evt->type == INPUT_KEY_SERVICE_ACTION_CLICK_RELEASE)
-    {
-        switch ((int)evt->data)
-        {
-        case INPUT_KEY_USER_ID_PLAY:
-            ESP_LOGI(TAG, "[ * ] [Play] input key event");
-            send_flag = true;
-            ESP_LOGW(TAG, "START communicating");
-            break;
-        case INPUT_KEY_USER_ID_SET:
-            ESP_LOGI(TAG, "[ * ] [Set] input key event");
-            send_flag = false;
-            ESP_LOGW(TAG, "STOP communicating");
-            break;
-        case INPUT_KEY_USER_ID_VOLUP:
-            ESP_LOGI(TAG, "[ * ] [Vol+] input key event");
-            player_volume += 10;
-            if (player_volume > 100)
-            {
-                player_volume = 100;
-            }
-            audio_hal_set_volume(board_handle->audio_hal, player_volume);
-            ESP_LOGI(TAG, "[ * ] Volume set to %d %%", player_volume);
-            break;
-        case INPUT_KEY_USER_ID_VOLDOWN:
-            ESP_LOGI(TAG, "[ * ] [Vol-] input key event");
-            player_volume -= 10;
-            if (player_volume < 0)
-            {
-                player_volume = 0;
-            }
-            audio_hal_set_volume(board_handle->audio_hal, player_volume);
-            ESP_LOGI(TAG, "[ * ] Volume set to %d %%", player_volume);
-            break;
+    if (evt->type == INPUT_KEY_SERVICE_ACTION_CLICK_RELEASE) {
+        switch ((int)evt->data) {
+            case INPUT_KEY_USER_ID_PLAY:
+                ESP_LOGI(TAG, "[ * ] [Play] input key event");
+                send_flag = true;
+                ESP_LOGW(TAG, "START communicating");
+                break;
+            case INPUT_KEY_USER_ID_SET:
+                ESP_LOGI(TAG, "[ * ] [Set] input key event");
+                send_flag = false;
+                ESP_LOGW(TAG, "STOP communicating");
+                break;
+            case INPUT_KEY_USER_ID_VOLUP:
+                ESP_LOGI(TAG, "[ * ] [Vol+] input key event");
+                player_volume += 10;
+                if (player_volume > 100) {
+                    player_volume = 100;
+                }
+                audio_hal_set_volume(board_handle->audio_hal, player_volume);
+                ESP_LOGI(TAG, "[ * ] Volume set to %d %%", player_volume);
+                break;
+            case INPUT_KEY_USER_ID_VOLDOWN:
+                ESP_LOGI(TAG, "[ * ] [Vol-] input key event");
+                player_volume -= 10;
+                if (player_volume < 0) {
+                    player_volume = 0;
+                }
+                audio_hal_set_volume(board_handle->audio_hal, player_volume);
+                ESP_LOGI(TAG, "[ * ] Volume set to %d %%", player_volume);
+                break;
         }
     }
     return ESP_OK;
@@ -386,7 +348,7 @@ void app_main(void)
 
 #if defined(CONFIG_MICRO_ROS_ESP_NETIF_WLAN) || defined(CONFIG_MICRO_ROS_ESP_NETIF_ENET)
     ESP_ERROR_CHECK(uros_network_interface_initialize());
-#endif
+#endif  /* defined(CONFIG_MICRO_ROS_ESP_NETIF_WLAN) || defined(CONFIG_MICRO_ROS_ESP_NETIF_ENET) */
 
     rcl_allocator_t allocator = rcl_get_default_allocator();
     rclc_support_t support;
@@ -401,7 +363,7 @@ void app_main(void)
     // Static Agent IP and port can be used instead of autodisvery.
     RCCHECK(rmw_uros_options_set_udp_address(CONFIG_MICRO_ROS_AGENT_IP, CONFIG_MICRO_ROS_AGENT_PORT, rmw_options));
     // RCCHECK(rmw_uros_discover_agent(rmw_options));
-#endif
+#endif  /* CONFIG_MICRO_ROS_ESP_XRCE_DDS_MIDDLEWARE */
 
     // create init_options
     RCCHECK(rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator));
@@ -435,8 +397,8 @@ void app_main(void)
 
     // Create executor.
     executor = rclc_executor_get_zero_initialized_executor();
-    RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator)); // 第三个参数为最大任务数
-    unsigned int rcl_wait_timeout = 1;                                       // in ms
+    RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));  // 第三个参数为最大任务数
+    unsigned int rcl_wait_timeout = 1;                                        // in ms
     RCCHECK(rclc_executor_set_timeout(&executor, RCL_MS_TO_NS(rcl_wait_timeout)));
 
     // Add timer and subscriber to executor.
@@ -447,13 +409,12 @@ void app_main(void)
     audio_pipeline_run(pipeline_out);
     audio_pipeline_run(pipeline_in);
 
-    while (1)
-    {
+    while (1) {
         audio_event_iface_msg_t msg;
         esp_err_t ret = audio_event_iface_listen(evt, &msg, 1);
         // Spin once
         rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1));
-        usleep(RCL_MS_TO_NS(10)); // microseconds
+        usleep(RCL_MS_TO_NS(10));  // microseconds
     }
 
     ESP_LOGI(TAG, "[ 6 ] Pipeline stopped");
