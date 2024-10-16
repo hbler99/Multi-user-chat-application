@@ -4,5 +4,5 @@ cmake_minimum_required(VERSION 3.5)
 include($ENV{ADF_PATH}/CMakeLists.txt)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 set(APPEND EXTRA_COMPONENT_DIRS "./components")
-project(Micro_ROS_audio_com)
+project(Multi-user_Chat_Application)
                         

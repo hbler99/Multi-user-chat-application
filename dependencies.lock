@@ -32,12 +32,12 @@ dependencies:
   idf:
     source:
       type: idf
-    version: 5.2.0
+    version: 5.2.2
 direct_dependencies:
 - espressif/esp-dsp
 - espressif/jsmn
 - espressif/nghttp
 - idf
-manifest_hash: e788a1e29096faf4f2f8c1cb5ea17f8a6809a44b9be7a8066c05697900fb8ade
+manifest_hash: e75a897da9c572ac8c2f6a393bf3f781abc86d690cb455501794040875268d1c
 target: esp32s3
 version: 2.0.0

@@ -52,7 +52,7 @@
 #define AMRWB_HEADER_INFO "#!AMR-WB\n"
 #define AMRWB_HEADER_SIZE (9)
 #define RECV_RB_SIZE      512
-static const char *TAG = "Audio_com";
+static const char *TAG = "Multi-user Chat";
 
 // Define publisher & subscriber
 static rcl_subscription_t            subscriber;
